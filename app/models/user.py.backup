@@ -1,0 +1,434 @@
+"""
+Modelo de Usuario para NutriChat
+Mapeado a la tabla 'usuarios' existente en Supabase
+"""
+
+import uuid
+import json
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional, Dict, Any
+
+import bcrypt
+from sqlalchemy import Column, String, Boolean, DateTime, Numeric, Text, Integer, Date, BigInteger, JSON
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import validates
+from email_validator import validate_email, EmailNotValidError
+
+from .database import db
+
+
+# Determinar tipo de columna JSON según la base de datos
+try:
+    import os
+    from flask import current_app
+    
+    # Para testing/SQLite, usar Text y manejar JSON manualmente
+    database_url = os.getenv('DATABASE_URL', '')
+    if 'sqlite' in database_url.lower() or ':memory:' in database_url:
+        JsonColumnType = Text
+    else:
+        # Para PostgreSQL (Supabase), usar JSONB
+        JsonColumnType = JSONB
+except:
+    # Fallback seguro
+    JsonColumnType = Text
+
+
+class User(db.Model):
+    """
+    Modelo de Usuario mapeado a la tabla 'usuarios'
+    
+    Representa un usuario del sistema NutriChat con información personal,
+    nutricional y preferencias de presupuesto.
+    """
+    
+    __tablename__ = 'usuarios'
+    
+    # Campos principales
+    usuario_id = Column(
+        UUID(as_uuid=True), 
+        primary_key=True, 
+        default=uuid.uuid4,
+        comment="ID único del usuario"
+    )
+    
+    # Información básica
+    nombre = Column(String, nullable=True, comment="Nombre completo del usuario")
+    email = Column(String, nullable=False, unique=True, comment="Email único del usuario")
+    telefono = Column(String, nullable=True, comment="Número de teléfono")
+    
+    # Sistema de roles (FK a tabla roles existente)
+    rol_id = Column(Integer, nullable=False, default=2, comment="Rol del usuario (2=usuario regular)")
+    
+    # Fechas y estado
+    fecha_registro = Column(DateTime, default=datetime.utcnow, comment="Fecha de registro")
+    ultima_conexion = Column(DateTime, nullable=True, comment="Última conexión")
+    activo = Column(Boolean, default=True, comment="Usuario activo")
+    
+    # Información personal
+    sexo = Column(String(10), nullable=True, comment="Sexo del usuario")
+    fecha_nacimiento = Column(Date, nullable=True, comment="Fecha de nacimiento")
+    peso_kg = Column(Numeric(5, 2), nullable=True, comment="Peso en kilogramos")
+    altura_cm = Column(Numeric(5, 2), nullable=True, comment="Altura en centímetros")
+    
+    # Información flexible y preferencias
+    perfil_json = Column(
+        JsonColumnType, 
+        nullable=True, 
+        comment="Información del perfil en formato JSON"
+    )
+    
+    # Integración con Telegram
+    telegram_id = Column(BigInteger, nullable=True, comment="ID de usuario de Telegram")
+    
+    # Campos adicionales para la aplicación (almacenados en perfil_json)
+    # password_hash, nutritional_preferences, budget_monthly, budget_weekly
+    
+    def __init__(self, **kwargs):
+        """
+        Inicializar usuario con validaciones
+        """
+        # Inicializar perfil_json si no existe
+        if 'perfil_json' not in kwargs:
+            kwargs['perfil_json'] = {}
+        
+        super().__init__(**kwargs)
+    
+    def _get_perfil_json(self) -> Dict[str, Any]:
+        """
+        Obtener perfil_json como diccionario, manejando Text vs JSONB
+        """
+        if self.perfil_json is None:
+            return {}
+        
+        # Si es string (SQLite/Text), deserializar
+        if isinstance(self.perfil_json, str):
+            try:
+                return json.loads(self.perfil_json)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        
+        # Si ya es dict (JSONB), retornar directamente
+        if isinstance(self.perfil_json, dict):
+            return self.perfil_json
+        
+        return {}
+    
+    def _set_perfil_json(self, data: Dict[str, Any]) -> None:
+        """
+        Establecer perfil_json, manejando Text vs JSONB
+        """
+        # Si es SQLite/Text, serializar a string
+        if JsonColumnType == Text:
+            self._set_perfil_json( json.dumps(data, default=str)
+        else:
+            # Si es JSONB, asignar directamente
+            self._set_perfil_json( data
+    
+    @validates('email')
+    def validate_email_format(self, key, email):
+        """
+        Validar formato de email usando email-validator
+        """
+        try:
+            validated_email = validate_email(email)
+            return validated_email.email
+        except EmailNotValidError as e:
+            raise ValueError(f"Email inválido: {str(e)}")
+    
+    @validates('peso_kg')
+    def validate_weight(self, key, peso):
+        """
+        Validar peso dentro de rangos razonables
+        """
+        if peso is not None:
+            if peso <= 0 or peso > 500:
+                raise ValueError("El peso debe estar entre 0.1 y 500 kg")
+        return peso
+    
+    @validates('altura_cm')
+    def validate_height(self, key, altura):
+        """
+        Validar altura dentro de rangos razonables
+        """
+        if altura is not None:
+            if altura <= 0 or altura > 250:
+                raise ValueError("La altura debe estar entre 0.1 y 250 cm")
+        return altura
+    
+    # Métodos de contraseña usando bcrypt
+    def set_password(self, password: str) -> None:
+        """
+        Hashear y almacenar contraseña usando bcrypt
+        
+        Args:
+            password: Contraseña en texto plano
+        """
+        if not password or len(password) < 6:
+            raise ValueError("La contraseña debe tener al menos 6 caracteres")
+        
+        # Generar salt y hash
+        salt = bcrypt.gensalt()
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
+        
+        # Almacenar en perfil_json
+        perfil_data = self._get_perfil_json()
+        perfil_data['password_hash'] = password_hash.decode('utf-8')
+        self._set_perfil_json(perfil_data)
+        
+        # Marcar el campo como modificado para SQLAlchemy
+        db.session.merge(self)
+    
+    def check_password(self, password: str) -> bool:
+        """
+        Verificar contraseña contra el hash almacenado
+        
+        Args:
+            password: Contraseña en texto plano a verificar
+            
+        Returns:
+            bool: True si la contraseña es correcta
+        """
+        if not password:
+            return False
+        
+        perfil_data = self._get_perfil_json()
+        stored_hash = perfil_data.get('password_hash')
+        if not stored_hash:
+            return False
+        
+        try:
+            return bcrypt.checkpw(
+                password.encode('utf-8'), 
+                stored_hash.encode('utf-8')
+            )
+        except Exception:
+            return False
+    
+    @property
+    def password_hash(self) -> Optional[str]:
+        """
+        Obtener hash de contraseña (solo lectura)
+        """
+        perfil_data = self._get_perfil_json()
+        return perfil_data.get('password_hash')
+    
+    # Métodos para preferencias nutricionales
+    def set_nutritional_preferences(self, preferences: Dict[str, Any]) -> None:
+        """
+        Establecer preferencias nutricionales
+        
+        Args:
+            preferences: Diccionario con preferencias nutricionales
+        """
+        if self.perfil_json is None:
+            self._set_perfil_json( {}
+        
+        perfil_data['nutritional_preferences'] = preferences
+        db.session.merge(self)
+    
+    def get_nutritional_preferences(self) -> Dict[str, Any]:
+        """
+        Obtener preferencias nutricionales
+        
+        Returns:
+            Dict con preferencias nutricionales o dict vacío
+        """
+        perfil_data = self._get_perfil_json(); if perfil_data:
+            return perfil_data.get('nutritional_preferences', {})
+        return {}
+    
+    # Métodos para presupuesto
+    def set_budget(self, monthly: Optional[Decimal] = None, weekly: Optional[Decimal] = None) -> None:
+        """
+        Establecer presupuesto mensual y/o semanal
+        
+        Args:
+            monthly: Presupuesto mensual
+            weekly: Presupuesto semanal
+        """
+        if self.perfil_json is None:
+            self._set_perfil_json( {}
+        
+        if monthly is not None:
+            if monthly < 0:
+                raise ValueError("El presupuesto mensual no puede ser negativo")
+            perfil_data['budget_monthly'] = float(monthly)
+        
+        if weekly is not None:
+            if weekly < 0:
+                raise ValueError("El presupuesto semanal no puede ser negativo")
+            perfil_data['budget_weekly'] = float(weekly)
+        
+        db.session.merge(self)
+    
+    @property
+    def budget_monthly(self) -> Optional[Decimal]:
+        """
+        Obtener presupuesto mensual
+        """
+        if self.perfil_json and 'budget_monthly' in self.perfil_json:
+            return Decimal(str(perfil_data['budget_monthly']))
+        return None
+    
+    @property
+    def budget_weekly(self) -> Optional[Decimal]:
+        """
+        Obtener presupuesto semanal
+        """
+        if self.perfil_json and 'budget_weekly' in self.perfil_json:
+            return Decimal(str(perfil_data['budget_weekly']))
+        return None
+    
+    # Propiedades calculadas
+    @property
+    def is_active(self) -> bool:
+        """
+        Alias para el campo 'activo' siguiendo convenciones de Flask
+        """
+        return self.activo
+    
+    @property
+    def created_at(self) -> datetime:
+        """
+        Alias para 'fecha_registro' siguiendo convenciones de Flask
+        """
+        return self.fecha_registro
+    
+    @property
+    def id(self) -> uuid.UUID:
+        """
+        Alias para 'usuario_id' siguiendo convenciones de Flask
+        """
+        return self.usuario_id
+    
+    @property
+    def age(self) -> Optional[int]:
+        """
+        Calcular edad del usuario basada en fecha de nacimiento
+        """
+        if self.fecha_nacimiento:
+            today = datetime.now().date()
+            return today.year - self.fecha_nacimiento.year - (
+                (today.month, today.day) < 
+                (self.fecha_nacimiento.month, self.fecha_nacimiento.day)
+            )
+        return None
+    
+    @property
+    def bmi(self) -> Optional[float]:
+        """
+        Calcular índice de masa corporal (BMI)
+        """
+        if self.peso_kg and self.altura_cm:
+            height_m = float(self.altura_cm) / 100
+            return round(float(self.peso_kg) / (height_m ** 2), 2)
+        return None
+    
+    # Métodos de serialización
+    def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:
+        """
+        Convertir usuario a diccionario para serialización
+        
+        Args:
+            include_sensitive: Si incluir información sensible
+            
+        Returns:
+            Dict con información del usuario
+        """
+        data = {
+            'id': str(self.usuario_id),
+            'email': self.email,
+            'nombre': self.nombre,
+            'telefono': self.telefono,
+            'rol_id': self.rol_id,
+            'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
+            'ultima_conexion': self.ultima_conexion.isoformat() if self.ultima_conexion else None,
+            'activo': self.activo,
+            'sexo': self.sexo,
+            'fecha_nacimiento': self.fecha_nacimiento.isoformat() if self.fecha_nacimiento else None,
+            'peso_kg': float(self.peso_kg) if self.peso_kg else None,
+            'altura_cm': float(self.altura_cm) if self.altura_cm else None,
+            'telegram_id': self.telegram_id,
+            'age': self.age,
+            'bmi': self.bmi,
+            'nutritional_preferences': self.get_nutritional_preferences(),
+            'budget_monthly': float(self.budget_monthly) if self.budget_monthly else None,
+            'budget_weekly': float(self.budget_weekly) if self.budget_weekly else None,
+        }
+        
+        if include_sensitive and self.perfil_json:
+            data['perfil_json'] = self.perfil_json.copy()
+        
+        return data
+    
+    def to_json_safe(self) -> Dict[str, Any]:
+        """
+        Convertir a diccionario sin información sensible
+        Útil para APIs públicas
+        """
+        return self.to_dict(include_sensitive=False)
+    
+    # Métodos de clase
+    @classmethod
+    def create_user(cls, email: str, password: str, **kwargs) -> 'User':
+        """
+        Crear nuevo usuario con validaciones
+        
+        Args:
+            email: Email del usuario
+            password: Contraseña en texto plano
+            **kwargs: Campos adicionales
+            
+        Returns:
+            Instancia de User creada
+        """
+        user = cls(email=email, **kwargs)
+        user.set_password(password)
+        return user
+    
+    @classmethod
+    def get_by_email(cls, email: str) -> Optional['User']:
+        """
+        Buscar usuario por email
+        
+        Args:
+            email: Email a buscar
+            
+        Returns:
+            Usuario encontrado o None
+        """
+        return cls.query.filter_by(email=email).first()
+    
+    @classmethod
+    def get_by_telegram_id(cls, telegram_id: int) -> Optional['User']:
+        """
+        Buscar usuario por ID de Telegram
+        
+        Args:
+            telegram_id: ID de Telegram
+            
+        Returns:
+            Usuario encontrado o None
+        """
+        return cls.query.filter_by(telegram_id=telegram_id).first()
+    
+    def update_last_connection(self) -> None:
+        """
+        Actualizar timestamp de última conexión
+        """
+        self.ultima_conexion = datetime.utcnow()
+        db.session.commit()
+    
+    def __repr__(self) -> str:
+        """
+        Representación string del usuario
+        """
+        return f"<User {self.email} - {self.nombre or 'Sin nombre'}>"
+    
+    def __str__(self) -> str:
+        """
+        String representation amigable
+        """
+        return f"{self.nombre or self.email} ({'Activo' if self.activo else 'Inactivo'})"
