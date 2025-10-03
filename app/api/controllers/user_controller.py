@@ -13,7 +13,20 @@ logger = logging.getLogger(__name__)
 class UserController:
     @staticmethod
     def register():
-        """Registrar nuevo usuario"""
+        """
+        Registrar nuevo usuario (solo requiere telegram_id)
+        Body JSON:
+        {
+            "telegram_id": 123456789,
+            "nombre": "Juan Pérez" (opcional),
+            "email": "email@ejemplo.com" (opcional),
+            "telefono": "+52123456789" (opcional),
+            "sexo": "M" (opcional),
+            "fecha_nacimiento": "1990-01-15" (opcional),
+            "peso_kg": 70.5 (opcional),
+            "altura_cm": 175.0 (opcional)
+        }
+        """
         try:
             data = request.get_json()
             
@@ -23,50 +36,56 @@ class UserController:
                     'message': 'No se enviaron datos'
                 }), 400
             
-            # Validar campos requeridos
-            email = data.get('email')
-            password = data.get('password')
+            #  SOLO telegram_id es requerido
+            telegram_id = data.get('telegram_id')
             
-            if not email or not password:
+            if not telegram_id:
                 return jsonify({
                     'success': False,
-                    'message': 'Email y contraseña son requeridos'
+                    'message': 'telegram_id es requerido'
+                }), 400
+            
+            # Validar que telegram_id sea un número entero
+            try:
+                telegram_id = int(telegram_id)
+            except (ValueError, TypeError):
+                return jsonify({
+                    'success': False,
+                    'message': 'telegram_id debe ser un número entero'
                 }), 400
             
             # Verificar si el usuario ya existe
-            if User.get_by_email(email):
+            if User.get_by_telegram_id(telegram_id):
+                return jsonify({
+                    'success': False,
+                    'message': 'Este Telegram ID ya está registrado'
+                }), 409
+            
+            # Verificar email si se proporciona
+            email = data.get('email')
+            if email and User.get_by_email(email):
                 return jsonify({
                     'success': False,
                     'message': 'El email ya está registrado'
                 }), 409
             
-            # Verificar si Telegram ID ya existe (si se proporciona)
-            telegram_id = data.get('telegram_id')
-            if telegram_id and User.get_by_telegram_id(telegram_id):
-                return jsonify({
-                    'success': False,
-                    'message': 'Esta cuenta de Telegram ya está vinculada'
-                }), 409
-            
-            # Crear usuario
-            user_data = {
-                'email': email,
-                'nombre': data.get('nombre'),
-                'telefono': data.get('telefono'),
-                'sexo': data.get('sexo'),
-                'fecha_nacimiento': data.get('fecha_nacimiento'),
-                'peso_kg': data.get('peso_kg'),
-                'altura_cm': data.get('altura_cm'),
-                'telegram_id': telegram_id
-            }
-            
-            user = User.create_user(email=email, password=password, **user_data)
+            #  Crear usuario con telegram_id como identificador principal
+            user = User.create_user(
+                telegram_id=telegram_id,
+                nombre=data.get('nombre'),
+                email=email,
+                telefono=data.get('telefono'),
+                sexo=data.get('sexo'),
+                fecha_nacimiento=data.get('fecha_nacimiento'),
+                peso_kg=data.get('peso_kg'),
+                altura_cm=data.get('altura_cm')
+            )
             
             # Guardar en base de datos
             db.session.add(user)
             db.session.commit()
             
-            logger.info(f"Usuario creado exitosamente: {email}")
+            logger.info(f"Usuario creado exitosamente - Telegram ID: {telegram_id}")
             
             return jsonify({
                 'success': True,
@@ -82,9 +101,10 @@ class UserController:
             
         except IntegrityError as e:
             db.session.rollback()
+            logger.error(f"Error de integridad: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': 'Error de integridad: email ya existe'
+                'message': 'Error de integridad: telegram_id o email duplicado'
             }), 409
             
         except Exception as e:
@@ -92,12 +112,18 @@ class UserController:
             logger.error(f"Error al crear usuario: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': 'Error interno del servidor'
+                'message': f'Error interno del servidor: {str(e)}'
             }), 500
     
     @staticmethod
     def login():
-        """Iniciar sesión"""
+        """
+        Iniciar sesión SOLO con telegram_id (sin contraseña)
+        Body JSON:
+        {
+            "telegram_id": 123456789
+        }
+        """
         try:
             data = request.get_json()
             
@@ -107,23 +133,31 @@ class UserController:
                     'message': 'No se enviaron datos'
                 }), 400
             
-            email = data.get('email')
-            password = data.get('password')
+            telegram_id = data.get('telegram_id')
             
-            if not email or not password:
+            if not telegram_id:
                 return jsonify({
                     'success': False,
-                    'message': 'Email y contraseña son requeridos'
+                    'message': 'telegram_id es requerido'
                 }), 400
             
-            # Buscar usuario
-            user = User.get_by_email(email)
-            
-            if not user or not user.check_password(password):
+            # Validar que sea entero
+            try:
+                telegram_id = int(telegram_id)
+            except (ValueError, TypeError):
                 return jsonify({
                     'success': False,
-                    'message': 'Credenciales inválidas'
-                }), 401
+                    'message': 'telegram_id debe ser un número entero'
+                }), 400
+            
+            # Buscar usuario por telegram_id
+            user = User.get_by_telegram_id(telegram_id)
+            
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'Usuario no encontrado'
+                }), 404
             
             if not user.is_active:
                 return jsonify({
@@ -131,7 +165,7 @@ class UserController:
                     'message': 'Cuenta desactivada'
                 }), 403
             
-            # Crear token de acceso
+            # Crear token de acceso usando el UUID del usuario
             access_token = create_access_token(identity=str(user.id))
             
             # Actualizar última conexión
@@ -148,7 +182,7 @@ class UserController:
             logger.error(f"Error en login: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': 'Error interno del servidor'
+                'message': f'Error interno del servidor: {str(e)}'
             }), 500
     
     @staticmethod
@@ -231,7 +265,7 @@ class UserController:
             # Campos actualizables
             updatable_fields = [
                 'nombre', 'telefono', 'sexo', 'fecha_nacimiento', 
-                'peso_kg', 'altura_cm'
+                'peso_kg', 'altura_cm', 'email'
             ]
             
             for field in updatable_fields:

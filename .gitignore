@@ -1,5 +1,5 @@
 # Entornos virtuales
-venv/
+.venv/
 env/
 
 # Cache Python
@@ -13,6 +13,8 @@ __pycache__/
 # Archivos de IDE
 .vscode/
 .idea/
+.trae/
+project_rules.md
 
 # Logs
 *.log
@@ -20,3 +22,4 @@ __pycache__/
 # Base de datos local
 *.db
 *.sqlite3
+
