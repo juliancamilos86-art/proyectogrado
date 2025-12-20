@@ -20,8 +20,8 @@ def create_app(config_name=None):
 
 
     # Registrar blueprints
-    from .api.routes import api_bp
-    app.register_blueprint(api_bp, url_prefix="/api")
+    from .api.routes import register_routes
+    register_routes(app)
 
     # Crear tablas si no existen
     with app.app_context():
