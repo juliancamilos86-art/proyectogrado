@@ -2,7 +2,7 @@
 Controlador para gestión de listas de mercado en NutriChat
 """
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 from decimal import Decimal, InvalidOperation
 import uuid
@@ -18,7 +18,6 @@ class ListasController:
     # ==================== LISTAS DE MERCADO ====================
     
     @staticmethod
-    @jwt_required()
     def create_lista():
         """
         Crear una nueva lista de mercado
@@ -92,7 +91,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_listas_by_usuario():
         """
         Obtener listas del usuario autenticado
@@ -131,7 +129,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_lista_by_id(lista_id):
         """
         Obtener lista por ID (solo si pertenece al usuario autenticado)
@@ -186,7 +183,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def update_lista(lista_id):
         """
         Actualizar lista de mercado
@@ -270,7 +266,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def delete_lista(lista_id):
         """
         Eliminar lista de mercado
@@ -331,7 +326,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def search_listas_by_nombre():
         """
         Buscar listas por nombre (búsqueda parcial)
@@ -382,7 +376,6 @@ class ListasController:
     # ==================== PRODUCTOS EN LISTA ====================
     
     @staticmethod
-    @jwt_required()
     def add_producto_to_lista(lista_id):
         """
         Agregar producto a una lista
@@ -547,7 +540,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_productos_by_lista(lista_id):
         """
         Obtener productos de una lista
@@ -604,7 +596,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def update_producto_in_lista(lista_id, producto_id):
         """
         Actualizar producto en lista
@@ -675,6 +666,11 @@ class ListasController:
             if 'cantidad' in data and data['cantidad'] is not None:
                 try:
                     cantidad = Decimal(str(data['cantidad']))
+                    if cantidad <= 0:
+                        return jsonify({
+                            'success': False,
+                            'message': 'La cantidad debe ser mayor a cero'
+                        }), 400
                     item.actualizar_cantidad(cantidad)
                 except (InvalidOperation, ValueError, TypeError) as e:
                     return jsonify({
@@ -688,6 +684,11 @@ class ListasController:
             if 'precio_unitario' in data and data['precio_unitario'] is not None:
                 try:
                     precio = Decimal(str(data['precio_unitario']))
+                    if precio < 0:
+                        return jsonify({
+                            'success': False,
+                            'message': 'El precio no puede ser negativo'
+                        }), 400
                     item.establecer_precio(precio)
                 except (InvalidOperation, ValueError, TypeError) as e:
                     return jsonify({
@@ -727,7 +728,6 @@ class ListasController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def remove_producto_from_lista(lista_id, producto_id):
         """
         Eliminar producto de una lista

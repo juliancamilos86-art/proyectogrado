@@ -57,6 +57,28 @@ def get_listas_by_usuario():
     return ListasController.get_listas_by_usuario()
 
 
+@listas_bp.route('/listas/search', methods=['GET'])
+@jwt_required()
+def search_listas_by_nombre():
+    """
+    Buscar listas por nombre (búsqueda parcial)
+    
+    Headers:
+    Authorization: Bearer <access_token>
+    
+    Query params:
+    - nombre: Nombre a buscar (requerido)
+    
+    Response:
+    {
+        "success": true,
+        "data": [...],
+        "count": 2
+    }
+    """
+    return ListasController.search_listas_by_nombre()
+
+
 @listas_bp.route('/listas/<lista_id>', methods=['GET'])
 @jwt_required()
 def get_lista_by_id(lista_id):
@@ -125,28 +147,6 @@ def delete_lista(lista_id):
     }
     """
     return ListasController.delete_lista(lista_id)
-
-
-@listas_bp.route('/listas/search', methods=['GET'])
-@jwt_required()
-def search_listas_by_nombre():
-    """
-    Buscar listas por nombre (búsqueda parcial)
-    
-    Headers:
-    Authorization: Bearer <access_token>
-    
-    Query params:
-    - nombre: Nombre a buscar (requerido)
-    
-    Response:
-    {
-        "success": true,
-        "data": [...],
-        "count": 2
-    }
-    """
-    return ListasController.search_listas_by_nombre()
 
 
 # ============================================================

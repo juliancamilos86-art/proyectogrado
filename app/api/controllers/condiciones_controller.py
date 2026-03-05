@@ -2,7 +2,7 @@
 Controlador para gestión de condiciones nutricionales en NutriChat
 """
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 import uuid
 from app.models.database import db
@@ -226,7 +226,6 @@ class CondicionesController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def update_condicion(condicion_id):
         """
         Actualizar condición nutricional
@@ -275,9 +274,10 @@ class CondicionesController:
             # Actualizar campos
             if 'nombre' in data:
                 nuevo_nombre = data['nombre'].strip() if data['nombre'] else None
-                if nuevo_nombre and nuevo_nombre != condicion.nombre:
-                    # Verificar que el nuevo nombre no esté en uso
-                    if CondicionNutricional.get_by_nombre(nuevo_nombre):
+                # Permitir actualizar incluso si es None (para limpiar el campo)
+                if nuevo_nombre != condicion.nombre:
+                    # Si el nuevo nombre no es None, verificar que no esté en uso
+                    if nuevo_nombre and CondicionNutricional.get_by_nombre(nuevo_nombre):
                         return jsonify({
                             'success': False,
                             'message': 'Este nombre de condición ya está en uso'
@@ -330,7 +330,6 @@ class CondicionesController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def delete_condicion(condicion_id):
         """
         Eliminar condición nutricional
@@ -382,7 +381,6 @@ class CondicionesController:
     # ==================== USUARIO CONDICION ====================
     
     @staticmethod
-    @jwt_required()
     def add_condicion_to_usuario():
         """
         Agregar condición nutricional a usuario autenticado
@@ -492,7 +490,6 @@ class CondicionesController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_condiciones_by_usuario():
         """
         Obtener condiciones nutricionales del usuario autenticado
@@ -539,7 +536,6 @@ class CondicionesController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def remove_condicion_from_usuario(condicion_id):
         """
         Eliminar condición nutricional del usuario autenticado
@@ -594,7 +590,6 @@ class CondicionesController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def check_usuario_has_condicion(condicion_id):
         """
         Verificar si el usuario autenticado tiene una condición específica

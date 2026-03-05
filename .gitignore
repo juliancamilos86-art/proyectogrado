@@ -2,6 +2,7 @@
 .venv/
 env/
 
+
 # Cache Python
 __pycache__/
 *.pyc
@@ -23,3 +24,6 @@ project_rules.md
 *.db
 *.sqlite3
 
+#ides
+.trae
+.cursor

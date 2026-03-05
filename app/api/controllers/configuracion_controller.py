@@ -2,7 +2,6 @@
 Controlador para gestión de configuración del sistema en NutriChat
 """
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required
 from sqlalchemy.exc import IntegrityError
 from app.models.database import db
 from app.models.configuracion_sistema import ConfiguracionSistema
@@ -13,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 class ConfiguracionController:
     @staticmethod
-    @jwt_required()
     def create_config():
         """
         Crear una nueva configuración del sistema
@@ -234,7 +232,6 @@ class ConfiguracionController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def update_config(clave):
         """
         Actualizar configuración del sistema
@@ -323,7 +320,6 @@ class ConfiguracionController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def update_config_key(clave):
         """
         Actualizar una clave específica dentro del valor de la configuración
@@ -410,7 +406,6 @@ class ConfiguracionController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def delete_config(clave):
         """
         Eliminar configuración del sistema

@@ -2,7 +2,7 @@
 Controlador para gestión de logs de auditoría en NutriChat
 """
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity
 import uuid
 from app.models.database import db
 from app.models.audit_log import AuditLog
@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 class AuditLogController:
     @staticmethod
-    @jwt_required()
     def create_log():
         """
         Crear un nuevo registro de auditoría
@@ -121,7 +120,6 @@ class AuditLogController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_log_by_id(log_id):
         """
         Obtener log de auditoría por ID
@@ -165,7 +163,6 @@ class AuditLogController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_logs_by_entidad():
         """
         Obtener logs por entidad
@@ -207,7 +204,6 @@ class AuditLogController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_logs_by_entidad_id():
         """
         Obtener logs por entidad e ID
@@ -254,7 +250,6 @@ class AuditLogController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_logs_by_usuario():
         """
         Obtener logs por usuario
@@ -310,7 +305,6 @@ class AuditLogController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_logs_by_accion():
         """
         Obtener logs por acción
@@ -352,7 +346,6 @@ class AuditLogController:
             }), 500
     
     @staticmethod
-    @jwt_required()
     def get_recent_logs():
         """
         Obtener logs recientes
