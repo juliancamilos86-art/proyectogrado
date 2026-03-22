@@ -375,3 +375,46 @@ class TelegramSesionController:
                 'success': False,
                 'message': f'Error interno del servidor: {str(e)}'
             }), 500
+    
+    
+    @staticmethod
+    def get_sesion_by_telegram_id(telegram_id):
+        """
+        Obtener sesión por telegram_id — retorna 200 con sesion=None
+        si no existe (NUNCA lanza 404 ni 500 por sesión inexistente)
+        """
+        try:
+            try:
+                telegram_id = int(telegram_id)
+            except (ValueError, TypeError):
+                return jsonify({
+                    'success': False,
+                    'message': 'telegram_id debe ser un número entero'
+                }), 400
+
+            sesion = TelegramSesion.get_by_telegram_id(telegram_id)
+
+            if not sesion:
+                # ← CRÍTICO: retorna 200 con existe=False, no 404
+                return jsonify({
+                    'success': True,
+                    'existe': False,
+                    'sesion': None,
+                    'estado_conversacion': None,
+                    'contexto': {}
+                }), 200
+
+            return jsonify({
+                'success': True,
+                'existe': True,
+                'sesion': sesion.to_json_safe(),
+                'estado_conversacion': sesion.estado_conversacion,
+                'contexto': sesion.contexto or {}
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Error obteniendo sesión: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Error interno del servidor'
+            }), 500

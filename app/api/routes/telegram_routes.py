@@ -186,4 +186,6 @@ def get_sesion_by_telegram_id(telegram_id):
     """
     return TelegramSesionController.get_sesion_by_telegram_id(telegram_id)
 
-
+@telegram_bp.route('/telegram/sesion/<int:telegram_id>', methods=['GET'])
+def get_sesion_by_telegram_id(telegram_id):
+    return TelegramSesionController.get_sesion_by_telegram_id(telegram_id)
