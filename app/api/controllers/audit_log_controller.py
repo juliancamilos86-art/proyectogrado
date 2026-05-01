@@ -34,7 +34,13 @@ class AuditLogController:
         }
         """
         try:
-            user_id = get_jwt_identity()
+            
+            # Intenta obtener el ID del token, si no hay, usa un ID por defecto
+            try:
+                usuario_id = get_jwt_identity()
+            except:
+                usuario_id = "sistema_n8n_automatico"
+
             data = request.get_json()
             
             if not data:
