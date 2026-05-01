@@ -14,7 +14,7 @@ audit_log_bp = Blueprint('audit_log', __name__)
 # ============================================================
 
 @audit_log_bp.route('/audit/log', methods=['POST'])
-@jwt_required()
+#@jwt_required()
 def create_log():
     """
     Crear un nuevo registro de auditoría
