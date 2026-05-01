@@ -85,8 +85,9 @@ class AuditLogController:
             else:
                 # Si no se proporciona, usar el usuario autenticado
                 try:
-                    usuario_id = uuid.UUID(user_id)
+                    usuario_id = uuid.UUID(usuario_id)
                 except (ValueError, TypeError):
+                    usuario_id = None
                     pass  # Puede ser None si no hay usuario autenticado válido
             
             # Crear log usando método del modelo
