@@ -82,7 +82,18 @@ class UserController:
                 peso_kg=data.get('peso_kg'),
                 altura_cm=data.get('altura_cm')
             )
-            
+            # 2. ASIGNAR LOS DATOS DEL CHAT 
+            if 'objetivo_nutricional' in data:
+                user.objetivo_nutricional = data['objetivo_nutricional']
+
+            # Guardar alergias y condiciones en el objeto de preferencias
+            prefs = {}
+            if 'alergias' in data: prefs['allergies'] = data['alergias']
+            if 'condiciones' in data: prefs['conditions'] = data['condiciones']
+
+            if prefs:
+                user.set_nutritional_preferences(prefs)
+
             # Guardar en base de datos
             db.session.add(user)
             db.session.commit()
