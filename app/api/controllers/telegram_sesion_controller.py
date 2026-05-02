@@ -131,7 +131,8 @@ class TelegramSesionController:
             
             telegram_id = data.get('telegram_id')
             estado_conversacion = data.get('estado_conversacion')
-            
+            contexto = data.get('contexto')
+
             if not telegram_id:
                 return jsonify({
                     'success': False,
@@ -160,13 +161,19 @@ class TelegramSesionController:
             if not sesion:
                 sesion = TelegramSesion.create_sesion(
                     telegram_id=telegram_id,
-                    estado_conversacion=estado_conversacion
+                    estado_conversacion=estado_conversacion,
+                    contexto=contexto
                 )
                 db.session.add(sesion)
             else:
-                # Actualizar solo estado_conversacion
-                sesion.estado_conversacion = estado_conversacion.strip() if estado_conversacion else None
+                # ACTUALIZACIÓN DOBLE:
+                if estado_conversacion is not None:
+                    sesion.estado_conversacion = estado_conversacion.strip()
             
+                if contexto is not None:
+                    # Usamos el método set_contexto que ya tienes en tu modelo
+                    sesion.set_contexto(contexto)
+                    
             # Hacer commit
             db.session.commit()
             
