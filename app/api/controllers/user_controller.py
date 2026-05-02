@@ -199,40 +199,36 @@ class UserController:
             }), 500
     
     @staticmethod
+@staticmethod
 def get_user_by_telegram_id(telegram_id):
     """
-    Obtener usuario por Telegram ID (SOLO BÚSQUEDA)
+    Obtiene el usuario para verificar su existencia. 
+   
     """
     try:
-        # Convertimos a int para asegurar compatibilidad
-        tid = int(telegram_id)
-        user = User.get_by_telegram_id(tid)
+        # 1. Buscar al usuario
+        user = User.get_by_telegram_id(int(telegram_id))
         
+        # 2. Si no existe, devolver 404 (n8n entenderá que es nuevo)
         if not user:
             return jsonify({
                 'success': False,
                 'message': 'Usuario no encontrado'
             }), 404
         
-        # Si existe, simplemente lo devolvemos
+        # 3. Si existe, devolver sus datos (n8n irá por la ruta de bienvenida)
         return jsonify({
             'success': True,
             'user': user.to_json_safe()
         }), 200
-        
+            
     except (ValueError, TypeError):
-        return jsonify({
-            'success': False,
-            'message': 'Telegram ID inválido'
-        }), 400
-        
+        return jsonify({'success': False, 'message': 'ID de Telegram inválido'}), 400
     except Exception as e:
-        logger.error(f"Error al buscar usuario por Telegram ID: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Error interno: {str(e)}'
-        }), 500
-    
+        logger.error(f"Error crítico en búsqueda: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
+
+
     @staticmethod
     @jwt_required()
     def get_profile():
