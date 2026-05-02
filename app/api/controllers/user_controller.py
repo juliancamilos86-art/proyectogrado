@@ -199,34 +199,33 @@ class UserController:
             }), 500
     
     @staticmethod
-@staticmethod
-def get_user_by_telegram_id(telegram_id):
-    """
-    Obtiene el usuario para verificar su existencia. 
+    def get_user_by_telegram_id(telegram_id):
+        """
+        Obtiene el usuario para verificar su existencia. 
    
-    """
-    try:
-        # 1. Buscar al usuario
-        user = User.get_by_telegram_id(int(telegram_id))
-        
-        # 2. Si no existe, devolver 404 (n8n entenderá que es nuevo)
-        if not user:
+        """
+        try:
+            # 1. Buscar al usuario
+            user = User.get_by_telegram_id(int(telegram_id))
+
+            # 2. Si no existe, devolver 404 (n8n entenderá que es nuevo)
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'Usuario no encontrado'
+                }), 404
+
+            # 3. Si existe, devolver sus datos (n8n irá por la ruta de bienvenida)
             return jsonify({
-                'success': False,
-                'message': 'Usuario no encontrado'
-            }), 404
-        
-        # 3. Si existe, devolver sus datos (n8n irá por la ruta de bienvenida)
-        return jsonify({
-            'success': True,
-            'user': user.to_json_safe()
-        }), 200
+                'success': True,
+                'user': user.to_json_safe()
+            }), 200
             
-    except (ValueError, TypeError):
-        return jsonify({'success': False, 'message': 'ID de Telegram inválido'}), 400
-    except Exception as e:
-        logger.error(f"Error crítico en búsqueda: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'ID de Telegram inválido'}), 400
+        except Exception as e:
+            logger.error(f"Error crítico en búsqueda: {str(e)}")
+            return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
 
 
     @staticmethod
