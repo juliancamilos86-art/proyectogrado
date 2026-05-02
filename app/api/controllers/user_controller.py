@@ -199,56 +199,39 @@ class UserController:
             }), 500
     
     @staticmethod
-    def get_user_by_telegram_id(telegram_id):
-        """Obtener usuario por Telegram ID"""
-        try:
-            user = User.get_by_telegram_id(int(telegram_id))
-            
-            if user:
-                # ACTUALIZACIÓN: Si el usuario ya existe, solo llenamos lo nuevo
-                if 'nombre' in data: user.nombre = data['nombre']
-                if 'email' in data and data['email']: user.email = data['email'] # <--- CRÍTICO
-                if 'peso_kg' in data: user.peso_kg = data['peso_kg']
-                if 'altura_cm' in data: user.altura_cm = data['altura_cm']
-                if 'objetivo_nutricional' in data: user.objetivo_nutricional = data['objetivo_nutricional']
-    
-                # Manejo de preferencias nutricionales
-                prefs = user.get_nutritional_preferences() or {}
-                if 'alergias' in data: prefs['allergies'] = data['alergias']
-                if 'condiciones' in data: prefs['conditions'] = data['condiciones']
-                user.set_nutritional_preferences(prefs)
-
-                db.session.commit()
-                return jsonify({
-                    'success': True, 
-                    'message': 'Usuario actualizado exitosamente',
-                    'user': user.to_json_safe()
-                }), 200
-
-
-            if not user:
-                return jsonify({
-                    'success': False,
-                    'message': 'Usuario no encontrado'
-                }), 404
-            
-            return jsonify({
-                'success': True,
-                'user': user.to_json_safe()
-            }), 200
-            
-        except ValueError:
+def get_user_by_telegram_id(telegram_id):
+    """
+    Obtener usuario por Telegram ID (SOLO BÚSQUEDA)
+    """
+    try:
+        # Convertimos a int para asegurar compatibilidad
+        tid = int(telegram_id)
+        user = User.get_by_telegram_id(tid)
+        
+        if not user:
             return jsonify({
                 'success': False,
-                'message': 'Telegram ID inválido'
-            }), 400
-            
-        except Exception as e:
-            logger.error(f"Error al buscar usuario por Telegram ID: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Error interno del servidor'
-            }), 500
+                'message': 'Usuario no encontrado'
+            }), 404
+        
+        # Si existe, simplemente lo devolvemos
+        return jsonify({
+            'success': True,
+            'user': user.to_json_safe()
+        }), 200
+        
+    except (ValueError, TypeError):
+        return jsonify({
+            'success': False,
+            'message': 'Telegram ID inválido'
+        }), 400
+        
+    except Exception as e:
+        logger.error(f"Error al buscar usuario por Telegram ID: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error interno: {str(e)}'
+        }), 500
     
     @staticmethod
     @jwt_required()
