@@ -284,3 +284,11 @@ def update_budget():
         }), 500
 
 
+# Agrega 'PUT' a los métodos permitidos
+@users_bp.route('/users/register', methods=['POST', 'PUT'])
+def register_or_update_user():
+    """
+    Registra si no existe, actualiza si ya existe (Upsert)
+    Ideal para el flujo de n8n que completa el perfil paso a paso.
+    """
+    return UserController.register() # Seguiremos usando el controlador, pero lo ajustaremos

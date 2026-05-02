@@ -39,13 +39,29 @@ class UserController:
                     'success': False,
                     'message': 'telegram_id debe ser un número entero'
                 }), 400
-            
+
+            user = User.get_by_telegram_id(telegram_id)
             # Verificar si el usuario ya existe
-            if User.get_by_telegram_id(telegram_id):
+            if user:
+                # 2. Si existe, ACTUALIZAMOS los campos que vengan en el JSON
+                if 'nombre' in data: user.nombre = data['nombre']
+                if 'peso_kg' in data: user.peso_kg = data['peso_kg']
+                if 'altura_cm' in data: user.altura_cm = data['altura_cm']
+                if 'objetivo_nutricional' in data: user.objetivo_nutricional = data['objetivo_nutricional']
+        
+                # Para campos complejos como alergias/condiciones
+                if 'alergias' in data or 'condiciones' in data:
+                    prefs = user.get_nutritional_preferences() or {}
+                    if 'alergias' in data: prefs['allergies'] = data['alergias']
+                    if 'condiciones' in data: prefs['conditions'] = data['condiciones']
+                    user.set_nutritional_preferences(prefs)
+
+                db.session.commit()
                 return jsonify({
-                    'success': False,
-                    'message': 'Este Telegram ID ya está registrado'
-                }), 409
+                    'success': True, 
+                    'message': 'Usuario actualizado exitosamente',
+                    'user': user.to_json_safe()
+                }), 200
             
             # Verificar email si se proporciona
             email = data.get('email')
