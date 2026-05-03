@@ -2,6 +2,7 @@
 Rutas de productos: categorías, productos, nutrición y snapshots
 """
 from flask import Blueprint
+from sqlalchemy import func
 from flask_jwt_extended import jwt_required
 from app.api.controllers.productos_controller import ProductosController
 
@@ -318,6 +319,31 @@ def get_latest_snapshot_by_producto(producto_id):
 
 @productos_bp.route('/productos/snapshots/latest-bulk', methods=['GET'])
 def get_latest_snapshots_bulk():
-    # SELECT DISTINCT ON (producto_id) producto_id, precio, disponibilidad
-    # FROM producto_snapshot ORDER BY producto_id, fecha_captura DESC
-    return ProductosController.get_latest_snapshots_bulk()
+    try:
+        # 1. Crear la subconsulta para obtener la última fecha por producto
+        subquery = db.session.query(
+            ProductoSnapshot.producto_id,
+            func.max(ProductoSnapshot.fecha_captura).label('max_fecha')
+        ).group_by(ProductoSnapshot.producto_id).subquery()
+
+        # 2. Hacer el join para traer solo los registros con esa fecha máxima
+        latest_snapshots = db.session.query(ProductoSnapshot).join(
+            subquery,
+            (ProductoSnapshot.producto_id == subquery.c.producto_id) &
+            (ProductoSnapshot.fecha_captura == subquery.c.max_fecha)
+        ).all()
+
+        # 3. Formatear la respuesta
+        return jsonify({
+            "status": "success",
+            "data": [
+                {
+                    "producto_id": str(s.producto_id),
+                    "precio": float(s.precio),
+                    "disponibilidad": s.disponibilidad
+                } for s in latest_snapshots
+            ]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
