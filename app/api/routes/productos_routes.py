@@ -1,8 +1,10 @@
 """
 Rutas de productos: categorías, productos, nutrición y snapshots
 """
-from flask import Blueprint
+from flask import Blueprint, jsonify
 from sqlalchemy import func
+from app.models.database import db
+from app.models.productos import ProductoSnapshot
 from flask_jwt_extended import jwt_required
 from app.api.controllers.productos_controller import ProductosController
 
@@ -333,17 +335,18 @@ def get_latest_snapshots_bulk():
             (ProductoSnapshot.fecha_captura == subquery.c.max_fecha)
         ).all()
 
-        # 3. Formatear la respuesta
+        # 3. Formatear la respuesta usando jsonify (ahora ya importado)
         return jsonify({
             "status": "success",
             "data": [
                 {
                     "producto_id": str(s.producto_id),
-                    "precio": float(s.precio),
+                    "precio": float(s.precio) if s.precio else 0.0,
                     "disponibilidad": s.disponibilidad
                 } for s in latest_snapshots
             ]
         }), 200
         
     except Exception as e:
+        # Aquí también se usa jsonify
         return jsonify({"status": "error", "message": str(e)}), 500
