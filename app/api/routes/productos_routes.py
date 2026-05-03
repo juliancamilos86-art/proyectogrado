@@ -92,6 +92,12 @@ def create_producto():
     """
     return ProductosController.create_producto()
 
+@productos_bp.route('/productos', methods=['GET'])
+def get_all_productos():
+    """
+    Obtener todos los productos (Soporta el parámetro ?limit= en n8n)
+    """
+    return ProductosController.get_all_productos()
 
 @productos_bp.route('/productos/<producto_id>', methods=['GET'])
 def get_producto_by_id(producto_id):

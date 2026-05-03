@@ -446,7 +446,30 @@ class ProductosController:
                 'success': False,
                 'message': 'Error interno del servidor'
             }), 500
-    
+    @staticmethod
+    def get_all_productos():
+        """
+        Obtener todos los productos con paginación básica (limit)
+        """
+        try:
+            # Obtener el límite de los query params (ej: ?limit=200)
+            limit = request.args.get('limit', default=100, type=int)
+            
+            # Consulta a la base de datos
+            productos = Producto.query.limit(limit).all()
+            
+            return jsonify({
+                'success': True,
+                'data': [producto.to_json_safe() for producto in productos],
+                'count': len(productos)
+            }), 200
+        except Exception as e:
+            logger.error(f"Error al obtener todos los productos: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Error interno del servidor'
+            }), 500
+
     @staticmethod
     @jwt_required()
     def update_producto(producto_id):
