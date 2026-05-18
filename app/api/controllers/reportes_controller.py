@@ -43,7 +43,8 @@ class ReportesController:
             db.session.add(reporte)
             db.session.commit()
 
-            logger.info(f"Reporte creado exitosamente - Usuario ID: {usuario_id}, Tipo: {data.get('tipo')}")
+            # LOG SEGURO: No expone el usuario_id (PII)
+            logger.info(f"Reporte creado exitosamente - Tipo: {data.get('tipo')}")
 
             return jsonify({
                 'success': True,
@@ -209,7 +210,8 @@ class ReportesController:
             db.session.add(feedback)
             db.session.commit()
 
-            logger.info(f"Feedback creado exitosamente - Usuario ID: {usuario_id}")
+            # LOG SEGURO: No expone el usuario_id (PII)
+            logger.info("Feedback creado exitosamente")
 
             return jsonify({
                 'success': True,

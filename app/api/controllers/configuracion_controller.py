@@ -60,7 +60,8 @@ class ConfiguracionController:
             db.session.add(config)
             db.session.commit()
 
-            logger.info(f"Configuración creada exitosamente - Clave: {clave}")
+            # LOG SEGURO: No expone la clave controlada por usuario
+            logger.info("Configuración creada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -208,7 +209,8 @@ class ConfiguracionController:
             config.set_valor(valor)
             db.session.commit()
 
-            logger.info(f"Configuración actualizada exitosamente - Clave: {clave}")
+            # LOG SEGURO: No expone la clave controlada por usuario
+            logger.info("Configuración actualizada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -272,7 +274,8 @@ class ConfiguracionController:
             config.set_valor_key(key, value)
             db.session.commit()
 
-            logger.info(f"Clave de configuración actualizada exitosamente - Clave: {clave}, Key: {key}")
+            # LOG SEGURO: No expone datos controlados por usuario
+            logger.info("Clave de configuración actualizada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -314,7 +317,8 @@ class ConfiguracionController:
             db.session.delete(config)
             db.session.commit()
 
-            logger.info(f"Configuración eliminada exitosamente - Clave: {clave}")
+            # LOG SEGURO: No expone la clave controlada por usuario
+            logger.info("Configuración eliminada exitosamente")
 
             return jsonify({
                 'success': True,

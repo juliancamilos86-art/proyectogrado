@@ -18,7 +18,22 @@ def create_app(config_name=None):
     # Inicializar extensiones
     db.init_app(app)
     jwt = JWTManager(app)
-    CORS(app)
+    
+    # ===== CONFIGURACIÓN CORS SEGURA =====
+    # Restringir orígenes permitidos (solo los necesarios)
+    allowed_origins = [
+        "https://t.me",
+        "https://web.telegram.org",
+        "http://localhost:5000",  # Desarrollo local
+        "http://127.0.0.1:5000"
+    ]
+    
+    # Si estamos en producción, usar orígenes específicos
+    if app.config.get('ENABLE_SECURITY_HEADERS', False):
+        CORS(app, resources={r"/*": {"origins": allowed_origins}})
+    else:
+        # En desarrollo, permitir localhost pero no orígenes externos peligrosos
+        CORS(app, resources={r"/*": {"origins": ["http://localhost:5000", "http://127.0.0.1:5000"]}})
 
     # ===== HEADERS DE SEGURIDAD HTTP =====
     @app.after_request
