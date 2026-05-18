@@ -1,4 +1,3 @@
-
 """
 Controlador para gestión de condiciones nutricionales en NutriChat
 """
@@ -20,9 +19,7 @@ class CondicionesController:
 
     @staticmethod
     def create_condicion():
-        """
-        Crear una nueva condición nutricional
-        """
+        """Crear una nueva condición nutricional"""
         try:
             data = request.get_json()
 
@@ -62,7 +59,8 @@ class CondicionesController:
             db.session.add(condicion)
             db.session.commit()
 
-            logger.info(f"Condición creada exitosamente - Nombre: {nombre}")
+            # LOG SEGURO: No expone el nombre (dato controlado por usuario)
+            logger.info("Condición creada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -216,7 +214,8 @@ class CondicionesController:
 
             db.session.commit()
 
-            logger.info(f"Condición actualizada exitosamente - ID: {condicion_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Condición actualizada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -268,7 +267,8 @@ class CondicionesController:
             db.session.delete(condicion)
             db.session.commit()
 
-            logger.info(f"Condición eliminada exitosamente - ID: {condicion_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Condición eliminada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -340,7 +340,8 @@ class CondicionesController:
             db.session.add(usuario_condicion)
             db.session.commit()
 
-            logger.info(f"Condición agregada a usuario exitosamente - Usuario ID: {usuario_id}, Condición ID: {condicion_id_int}")
+            # LOG SEGURO: No expone IDs sensibles
+            logger.info("Condición agregada a usuario exitosamente")
 
             return jsonify({
                 'success': True,
@@ -427,7 +428,8 @@ class CondicionesController:
             db.session.delete(relacion)
             db.session.commit()
 
-            logger.info(f"Condición eliminada de usuario exitosamente - Usuario ID: {usuario_id}, Condición ID: {condicion_id_int}")
+            # LOG SEGURO: No expone IDs sensibles
+            logger.info("Condición eliminada de usuario exitosamente")
 
             return jsonify({
                 'success': True,

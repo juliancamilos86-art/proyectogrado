@@ -78,7 +78,8 @@ class AuditLogController:
             db.session.add(log)
             db.session.commit()
 
-            logger.info(f"Log de auditoría creado exitosamente - Entidad: {entidad}, Acción: {accion}")
+            # LOG SEGURO: No expone datos controlados por usuario
+            logger.info("Log de auditoría creado exitosamente")
 
             return jsonify({
                 'success': True,

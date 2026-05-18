@@ -42,7 +42,8 @@ class ListasController:
             db.session.add(lista)
             db.session.commit()
 
-            logger.info(f"Lista creada exitosamente - Usuario ID: {usuario_id}")
+            # LOG SEGURO: No expone el usuario_id
+            logger.info("Lista creada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -179,7 +180,8 @@ class ListasController:
             lista.update_timestamp()
             db.session.commit()
 
-            logger.info(f"Lista actualizada exitosamente - ID: {lista_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Lista actualizada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -224,7 +226,8 @@ class ListasController:
             db.session.delete(lista)
             db.session.commit()
 
-            logger.info(f"Lista eliminada exitosamente - ID: {lista_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Lista eliminada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -372,7 +375,8 @@ class ListasController:
             lista.update_timestamp()
             db.session.commit()
 
-            logger.info(f"Producto agregado a lista exitosamente - Lista ID: {lista_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Producto agregado a lista exitosamente")
 
             return jsonify({
                 'success': True,
@@ -523,7 +527,8 @@ class ListasController:
             lista.update_timestamp()
             db.session.commit()
 
-            logger.info(f"Producto actualizado en lista exitosamente - Lista ID: {lista_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Producto actualizado en lista exitosamente")
 
             return jsonify({
                 'success': True,
@@ -584,7 +589,8 @@ class ListasController:
             lista.update_timestamp()
             db.session.commit()
 
-            logger.info(f"Producto eliminado de lista exitosamente - Lista ID: {lista_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Producto eliminado de lista exitosamente")
 
             return jsonify({
                 'success': True,
