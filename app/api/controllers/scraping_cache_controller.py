@@ -61,7 +61,6 @@ class ScrapingCacheController:
                         }), 400
 
                 db.session.commit()
-                # LOG SEGURO: No expone la URL
                 logger.info("Cache actualizado exitosamente")
 
                 return jsonify({
@@ -93,7 +92,6 @@ class ScrapingCacheController:
             db.session.add(cache)
             db.session.commit()
 
-            # LOG SEGURO: No expone la URL
             logger.info("Cache creado exitosamente")
 
             return jsonify({
@@ -223,8 +221,8 @@ class ScrapingCacheController:
 
             db.session.commit()
 
-            # LOG SEGURO: Solo expone el conteo, que no es sensible
-            logger.info(f"Eliminados {deleted_count} caches expirados")
+            # LOG SEGURO: No expone el conteo
+            logger.info("Caches expirados eliminados exitosamente")
 
             return jsonify({
                 'success': True,

@@ -43,8 +43,8 @@ class ReportesController:
             db.session.add(reporte)
             db.session.commit()
 
-            # LOG SEGURO: No expone el usuario_id (PII)
-            logger.info(f"Reporte creado exitosamente - Tipo: {data.get('tipo')}")
+            # LOG SEGURO: No expone ningún dato controlado por usuario
+            logger.info("Reporte creado exitosamente")
 
             return jsonify({
                 'success': True,
