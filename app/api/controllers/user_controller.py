@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identi
 from sqlalchemy.exc import IntegrityError
 from app.models.database import db
 from app.models.user import User
+from app.utils.security import safe_error_response, log_exception, sanitize_telegram_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class UserController:
                     'message': 'No se enviaron datos'
                 }), 400
             
-            #  SOLO telegram_id es requerido
+            # SOLO telegram_id es requerido
             telegram_id = data.get('telegram_id')
             
             if not telegram_id:
@@ -43,7 +44,7 @@ class UserController:
             user = User.get_by_telegram_id(telegram_id)
             # Verificar si el usuario ya existe
             if user:
-                # 2. Si existe, ACTUALIZAMOS los campos que vengan en el JSON
+                # Si existe, ACTUALIZAMOS los campos que vengan en el JSON
                 if 'nombre' in data: user.nombre = data['nombre']
                 if 'peso_kg' in data: user.peso_kg = data['peso_kg']
                 if 'altura_cm' in data: user.altura_cm = data['altura_cm']
@@ -71,7 +72,7 @@ class UserController:
                     'message': 'El email ya está registrado'
                 }), 409
             
-            #  Crear usuario con telegram_id 
+            # Crear usuario con telegram_id 
             user = User.create_user(
                 telegram_id=telegram_id,
                 nombre=data.get('nombre'),
@@ -82,7 +83,7 @@ class UserController:
                 peso_kg=data.get('peso_kg'),
                 altura_cm=data.get('altura_cm')
             )
-            # 2. ASIGNAR LOS DATOS DEL CHAT 
+            # ASIGNAR LOS DATOS DEL CHAT 
             if 'objetivo_nutricional' in data:
                 user.objetivo_nutricional = data['objetivo_nutricional']
 
@@ -98,7 +99,8 @@ class UserController:
             db.session.add(user)
             db.session.commit()
             
-            logger.info(f"Usuario creado exitosamente - Telegram ID: {telegram_id}")
+            # LOG SEGURO: No expone el telegram_id completo
+            logger.info(f"Usuario creado exitosamente - Telegram ID: {sanitize_telegram_id(telegram_id)}")
             
             return jsonify({
                 'success': True,
@@ -107,14 +109,15 @@ class UserController:
             }), 201
             
         except ValueError as e:
+            logger.warning(f"ValueError en register: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': 'Datos inválidos en la solicitud'
             }), 400
             
         except IntegrityError as e:
             db.session.rollback()
-            logger.error(f"Error de integridad: {str(e)}")
+            log_exception(logger, e, context="UserController.register - IntegrityError")
             return jsonify({
                 'success': False,
                 'message': 'Error de integridad: telegram_id o email duplicado'
@@ -122,11 +125,8 @@ class UserController:
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al crear usuario: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f'Error interno del servidor: {str(e)}'
-            }), 500
+            log_exception(logger, e, context="UserController.register")
+            return safe_error_response("Error interno del servidor", 500)
     
     @staticmethod
     def login():
@@ -192,30 +192,26 @@ class UserController:
             }), 200
             
         except Exception as e:
-            logger.error(f"Error en login: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f'Error interno del servidor: {str(e)}'
-            }), 500
+            log_exception(logger, e, context="UserController.login")
+            return safe_error_response("Error interno del servidor", 500)
     
     @staticmethod
     def get_user_by_telegram_id(telegram_id):
         """
         Obtiene el usuario para verificar su existencia. 
-   
         """
         try:
-            # 1. Buscar al usuario
+            # Buscar al usuario
             user = User.get_by_telegram_id(int(telegram_id))
 
-            # 2. Si no existe, devolver 404 (n8n entenderá que es nuevo)
+            # Si no existe, devolver 404 (n8n entenderá que es nuevo)
             if not user:
                 return jsonify({
                     'success': False,
                     'message': 'Usuario no encontrado'
                 }), 404
 
-            # 3. Si existe, devolver sus datos (n8n irá por la ruta de bienvenida)
+            # Si existe, devolver sus datos (n8n irá por la ruta de bienvenida)
             return jsonify({
                 'success': True,
                 'user': user.to_json_safe()
@@ -224,9 +220,8 @@ class UserController:
         except (ValueError, TypeError):
             return jsonify({'success': False, 'message': 'ID de Telegram inválido'}), 400
         except Exception as e:
-            logger.error(f"Error crítico en búsqueda: {str(e)}")
+            log_exception(logger, e, context="UserController.get_user_by_telegram_id")
             return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
-
 
     @staticmethod
     @jwt_required()
@@ -248,11 +243,8 @@ class UserController:
             }), 200
             
         except Exception as e:
-            logger.error(f"Error al obtener perfil: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Error interno del servidor'
-            }), 500
+            log_exception(logger, e, context="UserController.get_profile")
+            return safe_error_response("Error interno del servidor", 500)
     
     @staticmethod
     @jwt_required()
@@ -305,15 +297,13 @@ class UserController:
             }), 200
             
         except ValueError as e:
+            logger.warning(f"ValueError en update_profile: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': 'Datos inválidos en la solicitud'
             }), 400
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al actualizar perfil: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Error interno del servidor'
-            }), 500
+            log_exception(logger, e, context="UserController.update_profile")
+            return safe_error_response("Error interno del servidor", 500)

@@ -5,6 +5,7 @@ from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
 from app.models.database import db
 from app.models.telegram_sesion import TelegramSesion
+from app.utils.security import safe_error_response, log_exception, sanitize_telegram_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,12 +16,12 @@ class TelegramSesionController:
     def get_or_create_sesion():
         """
         Obtener o crear sesión activa (UPSERT lógico)
-        
+
         Body JSON:
         {
             "telegram_id": 123456789  // REQUERIDO
         }
-        
+
         Response:
         {
             "success": true,
@@ -30,21 +31,21 @@ class TelegramSesionController:
         """
         try:
             data = request.get_json()
-            
+
             if not data:
                 return jsonify({
                     'success': False,
                     'message': 'No se enviaron datos'
                 }), 400
-            
+
             telegram_id = data.get('telegram_id')
-            
+
             if not telegram_id:
                 return jsonify({
                     'success': False,
                     'message': 'telegram_id es requerido'
                 }), 400
-            
+
             # Validar que telegram_id sea un número entero
             try:
                 telegram_id = int(telegram_id)
@@ -53,66 +54,66 @@ class TelegramSesionController:
                     'success': False,
                     'message': 'telegram_id debe ser un número entero'
                 }), 400
-            
+
             # Buscar sesión más reciente por telegram_id
             sesion = TelegramSesion.get_by_telegram_id(telegram_id)
-            
+
             if sesion:
-                logger.info(f"Sesión encontrada - Telegram ID: {telegram_id}")
+                # LOG SEGURO: No expone el telegram_id completo
+                logger.info(f"Sesión encontrada - Telegram ID: {sanitize_telegram_id(telegram_id)}")
                 return jsonify({
                     'success': True,
                     'message': 'Sesión obtenida exitosamente',
                     'data': sesion.to_json_safe()
                 }), 200
-            
+
             # Si no existe, crear nueva sesión
             sesion = TelegramSesion.create_sesion(telegram_id=telegram_id)
-            
+
             # Guardar en base de datos
             db.session.add(sesion)
             db.session.commit()
-            
-            logger.info(f"Sesión creada exitosamente - Telegram ID: {telegram_id}")
-            
+
+            # LOG SEGURO: No expone el telegram_id completo
+            logger.info(f"Sesión creada exitosamente - Telegram ID: {sanitize_telegram_id(telegram_id)}")
+
             return jsonify({
                 'success': True,
                 'message': 'Sesión creada exitosamente',
                 'data': sesion.to_json_safe()
             }), 201
-            
+
         except ValueError as e:
+            logger.warning(f"ValueError en get_or_create_sesion: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': 'Datos inválidos en la solicitud'
             }), 400
-            
+
         except IntegrityError as e:
             db.session.rollback()
-            logger.error(f"Error de integridad: {str(e)}")
+            log_exception(logger, e, context="TelegramSesionController.get_or_create_sesion - IntegrityError")
             return jsonify({
                 'success': False,
                 'message': 'Error de integridad al crear sesión'
             }), 409
-            
+
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al obtener/crear sesión: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f'Error interno del servidor: {str(e)}'
-            }), 500
-    
+            log_exception(logger, e, context="TelegramSesionController.get_or_create_sesion")
+            return safe_error_response("Error interno del servidor", 500)
+
     @staticmethod
     def update_estado():
         """
         Actualizar estado de conversación
-        
+
         Body JSON:
         {
             "telegram_id": 123456789,  // REQUERIDO
             "estado_conversacion": "esperando_presupuesto"  // REQUERIDO
         }
-        
+
         Response:
         {
             "success": true,
@@ -122,13 +123,13 @@ class TelegramSesionController:
         """
         try:
             data = request.get_json()
-            
+
             if not data:
                 return jsonify({
                     'success': False,
                     'message': 'No se enviaron datos'
                 }), 400
-            
+
             telegram_id = data.get('telegram_id')
             estado_conversacion = data.get('estado_conversacion')
             contexto = data.get('contexto')
@@ -138,13 +139,13 @@ class TelegramSesionController:
                     'success': False,
                     'message': 'telegram_id es requerido'
                 }), 400
-            
+
             if estado_conversacion is None:
                 return jsonify({
                     'success': False,
                     'message': 'estado_conversacion es requerido'
                 }), 400
-            
+
             # Validar que telegram_id sea un número entero
             try:
                 telegram_id = int(telegram_id)
@@ -153,10 +154,10 @@ class TelegramSesionController:
                     'success': False,
                     'message': 'telegram_id debe ser un número entero'
                 }), 400
-            
+
             # Buscar sesión activa por telegram_id
             sesion = TelegramSesion.get_by_telegram_id(telegram_id)
-            
+
             # Si no existe, crear una nueva
             if not sesion:
                 sesion = TelegramSesion.create_sesion(
@@ -169,42 +170,40 @@ class TelegramSesionController:
                 # ACTUALIZACIÓN DOBLE:
                 if estado_conversacion is not None:
                     sesion.estado_conversacion = estado_conversacion.strip()
-            
+
                 if contexto is not None:
-                    # Usamos el método set_contexto que ya tienes en tu modelo
                     sesion.set_contexto(contexto)
-                    
+
             # Hacer commit
             db.session.commit()
-            
-            logger.info(f"Estado actualizado - Telegram ID: {telegram_id}, Estado: {estado_conversacion}")
-            
+
+            # LOG SEGURO: No expone el telegram_id completo
+            logger.info(f"Estado actualizado - Telegram ID: {sanitize_telegram_id(telegram_id)}, Estado: {estado_conversacion}")
+
             return jsonify({
                 'success': True,
                 'message': 'Estado actualizado exitosamente',
                 'data': sesion.to_json_safe()
             }), 200
-            
+
         except ValueError as e:
             db.session.rollback()
+            logger.warning(f"ValueError en update_estado: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': 'Datos inválidos en la solicitud'
             }), 400
-            
+
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al actualizar estado: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f'Error interno del servidor: {str(e)}'
-            }), 500
-    
+            log_exception(logger, e, context="TelegramSesionController.update_estado")
+            return safe_error_response("Error interno del servidor", 500)
+
     @staticmethod
     def update_contexto():
         """
         Actualizar contexto conversacional (JSONB)
-        
+
         Body JSON:
         {
             "telegram_id": 123456789,  // REQUERIDO
@@ -213,7 +212,7 @@ class TelegramSesionController:
                 "categoria": "verduras"
             }
         }
-        
+
         Response:
         {
             "success": true,
@@ -223,28 +222,28 @@ class TelegramSesionController:
         """
         try:
             data = request.get_json()
-            
+
             if not data:
                 return jsonify({
                     'success': False,
                     'message': 'No se enviaron datos'
                 }), 400
-            
+
             telegram_id = data.get('telegram_id')
             contexto = data.get('contexto')
-            
+
             if not telegram_id:
                 return jsonify({
                     'success': False,
                     'message': 'telegram_id es requerido'
                 }), 400
-            
+
             if contexto is None:
                 return jsonify({
                     'success': False,
                     'message': 'contexto es requerido'
                 }), 400
-            
+
             # Validar que telegram_id sea un número entero
             try:
                 telegram_id = int(telegram_id)
@@ -253,17 +252,17 @@ class TelegramSesionController:
                     'success': False,
                     'message': 'telegram_id debe ser un número entero'
                 }), 400
-            
+
             # Validar que contexto sea un diccionario
             if not isinstance(contexto, dict):
                 return jsonify({
                     'success': False,
                     'message': 'contexto debe ser un objeto JSON'
                 }), 400
-            
+
             # Buscar sesión activa por telegram_id
             sesion = TelegramSesion.get_by_telegram_id(telegram_id)
-            
+
             # Si no existe, crear una nueva
             if not sesion:
                 sesion = TelegramSesion.create_sesion(
@@ -272,45 +271,43 @@ class TelegramSesionController:
                 )
                 db.session.add(sesion)
             else:
-                # Usar método del modelo para establecer contexto
                 sesion.set_contexto(contexto)
-            
+
             # Hacer commit
             db.session.commit()
-            
-            logger.info(f"Contexto actualizado - Telegram ID: {telegram_id}")
-            
+
+            # LOG SEGURO: No expone el telegram_id completo
+            logger.info(f"Contexto actualizado - Telegram ID: {sanitize_telegram_id(telegram_id)}")
+
             return jsonify({
                 'success': True,
                 'message': 'Contexto actualizado exitosamente',
                 'data': sesion.to_json_safe()
             }), 200
-            
+
         except ValueError as e:
             db.session.rollback()
+            logger.warning(f"ValueError en update_contexto: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': 'Datos inválidos en la solicitud'
             }), 400
-            
+
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al actualizar contexto: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f'Error interno del servidor: {str(e)}'
-            }), 500
-    
+            log_exception(logger, e, context="TelegramSesionController.update_contexto")
+            return safe_error_response("Error interno del servidor", 500)
+
     @staticmethod
     def clear_sesion():
         """
         Limpiar sesión (reset conversacional)
-        
+
         Body JSON:
         {
             "telegram_id": 123456789  // REQUERIDO
         }
-        
+
         Response:
         {
             "success": true,
@@ -320,21 +317,21 @@ class TelegramSesionController:
         """
         try:
             data = request.get_json()
-            
+
             if not data:
                 return jsonify({
                     'success': False,
                     'message': 'No se enviaron datos'
                 }), 400
-            
+
             telegram_id = data.get('telegram_id')
-            
+
             if not telegram_id:
                 return jsonify({
                     'success': False,
                     'message': 'telegram_id es requerido'
                 }), 400
-            
+
             # Validar que telegram_id sea un número entero
             try:
                 telegram_id = int(telegram_id)
@@ -343,47 +340,45 @@ class TelegramSesionController:
                     'success': False,
                     'message': 'telegram_id debe ser un número entero'
                 }), 400
-            
+
             # Buscar sesión activa por telegram_id
             sesion = TelegramSesion.get_by_telegram_id(telegram_id)
-            
+
             if not sesion:
                 return jsonify({
                     'success': False,
                     'message': 'Sesión no encontrada'
                 }), 404
-            
+
             # Limpiar estado y contexto (NO eliminar el registro)
             sesion.estado_conversacion = None
             sesion.clear_contexto()
-            
+
             # Hacer commit
             db.session.commit()
-            
-            logger.info(f"Sesión limpiada - Telegram ID: {telegram_id}")
-            
+
+            # LOG SEGURO: No expone el telegram_id completo
+            logger.info(f"Sesión limpiada - Telegram ID: {sanitize_telegram_id(telegram_id)}")
+
             return jsonify({
                 'success': True,
                 'message': 'Sesión limpiada exitosamente',
                 'data': sesion.to_json_safe()
             }), 200
-            
+
         except ValueError as e:
             db.session.rollback()
+            logger.warning(f"ValueError en clear_sesion: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': 'Datos inválidos en la solicitud'
             }), 400
-            
+
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error al limpiar sesión: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': f'Error interno del servidor: {str(e)}'
-            }), 500
-    
-    
+            log_exception(logger, e, context="TelegramSesionController.clear_sesion")
+            return safe_error_response("Error interno del servidor", 500)
+
     @staticmethod
     def get_sesion_by_telegram_id(telegram_id):
         """
@@ -402,7 +397,6 @@ class TelegramSesionController:
             sesion = TelegramSesion.get_by_telegram_id(telegram_id)
 
             if not sesion:
-                # ← CRÍTICO: retorna 200 con existe=False, no 404
                 return jsonify({
                     'success': True,
                     'existe': False,
@@ -420,7 +414,7 @@ class TelegramSesionController:
             }), 200
 
         except Exception as e:
-            logger.error(f"Error obteniendo sesión: {str(e)}")
+            log_exception(logger, e, context="TelegramSesionController.get_sesion_by_telegram_id")
             return jsonify({
                 'success': False,
                 'message': 'Error interno del servidor'
