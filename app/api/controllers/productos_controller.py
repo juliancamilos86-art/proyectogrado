@@ -21,9 +21,7 @@ class ProductosController:
 
     @staticmethod
     def create_categoria():
-        """
-        Crear una nueva categoría
-        """
+        """Crear una nueva categoría"""
         try:
             data = request.get_json()
 
@@ -55,7 +53,8 @@ class ProductosController:
             db.session.add(categoria)
             db.session.commit()
 
-            logger.info(f"Categoría creada exitosamente - Nombre: {nombre}")
+            # LOG SEGURO: No expone el nombre controlado por usuario
+            logger.info("Categoría creada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -178,7 +177,8 @@ class ProductosController:
             db.session.add(producto)
             db.session.commit()
 
-            logger.info(f"Producto creado exitosamente - Nombre: {nombre}")
+            # LOG SEGURO: No expone el nombre controlado por usuario
+            logger.info("Producto creado exitosamente")
 
             return jsonify({
                 'success': True,
@@ -393,7 +393,8 @@ class ProductosController:
             producto.update_timestamp()
             db.session.commit()
 
-            logger.info(f"Producto actualizado exitosamente - ID: {producto_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Producto actualizado exitosamente")
 
             return jsonify({
                 'success': True,
@@ -487,7 +488,8 @@ class ProductosController:
             db.session.add(nutricion)
             db.session.commit()
 
-            logger.info(f"Información nutricional creada exitosamente - Producto ID: {producto_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Información nutricional creada exitosamente")
 
             return jsonify({
                 'success': True,
@@ -605,7 +607,8 @@ class ProductosController:
             db.session.add(snapshot)
             db.session.commit()
 
-            logger.info(f"Snapshot creado exitosamente - Producto ID: {producto_id}")
+            # LOG SEGURO: No expone el ID
+            logger.info("Snapshot creado exitosamente")
 
             return jsonify({
                 'success': True,
